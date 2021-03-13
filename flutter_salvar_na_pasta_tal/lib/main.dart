@@ -1,7 +1,5 @@
-import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
@@ -9,7 +7,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:collection/collection.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 
 void main() {
   runApp(MyApp());
@@ -49,7 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     var today = new DateTime.now();
     setState(() {
-      nomeImagemSalvar = 'TelaBranca$today';
+      nomeImagemSalvar = 'TB$today';
     });
   }
 
@@ -64,18 +62,38 @@ class _MyHomePageState extends State<MyHomePage> {
       if (!(await Permission.storage.status.isGranted))
         await Permission.storage.request();
 
-      var testdir = await new Directory('/storage/emulated/0/DCIM/TelaBranca')
-          .create(recursive: true);
-      final filePath = path.join(testdir.path, nomeImagemSalvar + '.png');
-      print(filePath);
-      File file = File(filePath);
-      await file.writeAsBytes(Uint8List.fromList(pngBytes));
-      print(file.path);
+      var testdir2 =
+          await new Directory('/storage/emulated/0/TelaBranca').create(recursive: true);
+      final filePath2 =
+          path.join(testdir2.path, "1" + nomeImagemSalvar + '.png');
+      print(filePath2);
+      File file1 = File(filePath2);
+      await file1.writeAsBytes(Uint8List.fromList(pngBytes));
+      print(file1.path);
+      await ImageGallerySaver.saveFile(file1.path);
+
+      var testdir4 =
+          await new Directory('/storage/emulated/0/DCIM/TelaBranca').create(recursive: true);
+      final filePath4 =
+          path.join(testdir4.path, "6" + nomeImagemSalvar + '.png');
+      print(filePath4);
+      File file4 = File(filePath4);
+      await file4.writeAsBytes(Uint8List.fromList(pngBytes));
+      print(file4.path);
+      await ImageGallerySaver.saveFile(file4.path);
+
+      final directory = await getApplicationDocumentsDirectory();
+      final filePath3 =
+          path.join(directory.path, "2" + nomeImagemSalvar + '.png');
+      File file3 = File(filePath3);
+      await file3.writeAsBytes(Uint8List.fromList(pngBytes));
+      await GallerySaver.saveImage(file1.path);
 
       final result = await ImageGallerySaver.saveImage(
           Uint8List.fromList(pngBytes),
-          quality: 100,
-          name: nomeImagemSalvar);
+          quality: 60,
+          name: "4Tb");
+
       print(result);
     } catch (e) {}
   }

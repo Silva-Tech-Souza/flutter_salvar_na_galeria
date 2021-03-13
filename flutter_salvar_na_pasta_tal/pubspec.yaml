@@ -28,6 +28,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.0
   image_gallery_saver: any
+  
+  gallery_saver: any
+
   permission_handler: any
   path_provider: any
 
