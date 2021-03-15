@@ -1,13 +1,13 @@
 import 'dart:typed_data';
 import 'dart:ui';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:gallery_saver/gallery_saver.dart';
 
 void main() {
   runApp(MyApp());
@@ -51,51 +51,93 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _salvarImagem() async {
+  Future<bool> saveVideo(String url, String fileName) async {
+    Directory directory;
+    RenderRepaintBoundary boundary =
+        globalKey.currentContext.findRenderObject();
+    var image = await boundary.toImage(pixelRatio: 4);
+    ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
+    Uint8List pngBytes = byteData.buffer.asUint8List();
+    var dio = Dio();
+
     try {
-      RenderRepaintBoundary boundary =
-          globalKey.currentContext.findRenderObject();
-      var image = await boundary.toImage(pixelRatio: 4);
-      ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
-      Uint8List pngBytes = byteData.buffer.asUint8List();
+      if (Platform.isAndroid) {
+        if (await _requestPermission(Permission.storage)) {
+          directory = await getExternalStorageDirectory();
+          String newPath = "";
+          print(directory);
+          List<String> paths = directory.path.split("/");
+          for (int x = 1; x < paths.length; x++) {
+            String folder = paths[x];
+            if (folder != "Android") {
+              newPath += "/" + folder;
+            } else {
+              break;
+            }
+          }
+          newPath = newPath + "/TelaBranca";
+          directory = Directory(newPath);
+        } else {
+          return false;
+        }
+      } else {
+        if (await _requestPermission(Permission.photos)) {
+          directory = await getTemporaryDirectory();
+        } else {
+          return false;
+        }
+      }
+      File saveFile = File(directory.path + "/$fileName");
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+      if (await directory.exists()) {
+        final filePath2 =
+            path.join(directory.path, "1" + nomeImagemSalvar + '.png');
+        print(filePath2);
+        File file1 = File(filePath2);
+        await file1.writeAsBytes(Uint8List.fromList(pngBytes), flush: true);
+        print(file1.path);
 
-      if (!(await Permission.storage.status.isGranted))
-        await Permission.storage.request();
+        dio.download(url, saveFile.path, onReceiveProgress: (value1, value2) {
+          setState(() {});
+        });
+        if (Platform.isIOS) {
+          await ImageGallerySaver.saveFile(saveFile.path,
+              isReturnPathOfIOS: true);
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print(e);
+      return false;
+    }
+  }
 
-      var testdir2 =
-          await new Directory('/storage/emulated/0/TelaBranca').create(recursive: true);
-      final filePath2 =
-          path.join(testdir2.path, "1" + nomeImagemSalvar + '.png');
-      print(filePath2);
-      File file1 = File(filePath2);
-      await file1.writeAsBytes(Uint8List.fromList(pngBytes));
-      print(file1.path);
-      await ImageGallerySaver.saveFile(file1.path);
+  Future<bool> _requestPermission(Permission permission) async {
+    if (await permission.isGranted) {
+      return true;
+    } else {
+      var result = await permission.request();
+      if (result == PermissionStatus.granted) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-      var testdir4 =
-          await new Directory('/storage/emulated/0/DCIM/TelaBranca').create(recursive: true);
-      final filePath4 =
-          path.join(testdir4.path, "6" + nomeImagemSalvar + '.png');
-      print(filePath4);
-      File file4 = File(filePath4);
-      await file4.writeAsBytes(Uint8List.fromList(pngBytes));
-      print(file4.path);
-      await ImageGallerySaver.saveFile(file4.path);
-
-      final directory = await getApplicationDocumentsDirectory();
-      final filePath3 =
-          path.join(directory.path, "2" + nomeImagemSalvar + '.png');
-      File file3 = File(filePath3);
-      await file3.writeAsBytes(Uint8List.fromList(pngBytes));
-      await GallerySaver.saveImage(file1.path);
-
-      final result = await ImageGallerySaver.saveImage(
-          Uint8List.fromList(pngBytes),
-          quality: 60,
-          name: "4Tb");
-
-      print(result);
-    } catch (e) {}
+  downloadFile() async {
+    setState(() {});
+    bool downloaded = await saveVideo(
+        "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4",
+        nomeImagemSalvar);
+    if (downloaded) {
+      print("File Downloaded");
+    } else {
+      print("Problem Downloading File");
+    }
+    setState(() {});
   }
 
   @override
@@ -124,7 +166,7 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _randomizarNomeArquivo();
-          _salvarImagem();
+          downloadFile();
         },
         tooltip: 'Increment',
         child: Icon(Icons.add),
