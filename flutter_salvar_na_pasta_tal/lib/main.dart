@@ -42,102 +42,81 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  void _randomizarNomeArquivo() {
-    // Random random = new Random();
+  Future<void> _randomizarNomeArquivo() async {
+    Random random = new Random();
 
     var today = new DateTime.now();
-    setState(() {
-      nomeImagemSalvar = 'TB$today';
-    });
+
+    nomeImagemSalvar = 'TelaBranca $today';
   }
 
-  Future<bool> saveVideo(String url, String fileName) async {
-    Directory directory;
-    RenderRepaintBoundary boundary =
-        globalKey.currentContext.findRenderObject();
-    var image = await boundary.toImage(pixelRatio: 4);
-    ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
-    Uint8List pngBytes = byteData.buffer.asUint8List();
-    var dio = Dio();
-
+  Future<void> _salvarImagem() async {
     try {
-      if (Platform.isAndroid) {
-        if (await _requestPermission(Permission.storage)) {
-          directory = await getExternalStorageDirectory();
-          String newPath = "";
-          print(directory);
-          List<String> paths = directory.path.split("/");
-          for (int x = 1; x < paths.length; x++) {
-            String folder = paths[x];
-            if (folder != "Android") {
-              newPath += "/" + folder;
-            } else {
-              break;
-            }
-          }
-          newPath = newPath + "/TelaBranca";
-          directory = Directory(newPath);
-        } else {
-          return false;
-        }
-      } else {
-        if (await _requestPermission(Permission.photos)) {
-          directory = await getTemporaryDirectory();
-        } else {
-          return false;
-        }
-      }
-      File saveFile = File(directory.path + "/$fileName");
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
-      }
-      if (await directory.exists()) {
-        final filePath2 =
-            path.join(directory.path, "1" + nomeImagemSalvar + '.png');
-        print(filePath2);
-        File file1 = File(filePath2);
-        await file1.writeAsBytes(Uint8List.fromList(pngBytes), flush: true);
-        print(file1.path);
+      final RenderRepaintBoundary boundary =
+          keyRepaintSalvar.currentContext.findRenderObject();
 
-        dio.download(url, saveFile.path, onReceiveProgress: (value1, value2) {
-          setState(() {});
-        });
-        if (Platform.isIOS) {
-          await ImageGallerySaver.saveFile(saveFile.path,
-              isReturnPathOfIOS: true);
+      final image = await boundary.toImage(pixelRatio: 4);
+
+      final ByteData byteData =
+          await image.toByteData(format: ImageByteFormat.png);
+
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      if (!(await Permission.storage.status.isGranted))
+        await Permission.storage.request();
+
+      /* final result = await ImageGallerySaver.saveImage(
+          Uint8List.fromList(pngBytes),
+          quality: 100,
+          name: nomeImagemSalvar);*/
+
+      try {
+        //App Document Directory + folder name
+
+        try {
+          createFolderInAppDocDir('Tela Branca');
+        } catch (e) {
+          print(e);
         }
-        return true;
+
+        String fullPath =
+            '/storage/emulated/0/Tela Branca/Branca ${DateTime.now().millisecond}.png';
+
+        File capturedFile = File(fullPath);
+        await capturedFile.writeAsBytes(
+          Uint8List.fromList(pngBytes),
+          flush: true,
+        );
+        print(capturedFile.path);
+
+        await ImageGallerySaver.saveFile(capturedFile.path);
+        capturedFile.delete();
+      } catch (e) {
+        print(e);
       }
-      return false;
     } catch (e) {
       print(e);
-      return false;
     }
   }
 
-  Future<bool> _requestPermission(Permission permission) async {
-    if (await permission.isGranted) {
-      return true;
-    } else {
-      var result = await permission.request();
-      if (result == PermissionStatus.granted) {
-        return true;
-      }
-    }
-    return false;
-  }
+  static Future<String> createFolderInAppDocDir(String folderName) async {
+    //Get this App Document Directory
+    final String dir = (await getExternalStorageDirectory()).path;
+    //App Document Directory + folder name
+    //final Directory _appDocDirFolder = Directory('$dir/$folderName');
+    final Directory _appDocDirFolder =
+        Directory('/storage/emulated/0/$folderName');
 
-  downloadFile() async {
-    setState(() {});
-    bool downloaded = await saveVideo(
-        "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4",
-        nomeImagemSalvar);
-    if (downloaded) {
-      print("File Downloaded");
+    if (await _appDocDirFolder.exists()) {
+      //if folder already exists return path
+      print('AAAAAAAA  ' + _appDocDirFolder.path.toString());
+      return _appDocDirFolder.path;
     } else {
-      print("Problem Downloading File");
+      //if folder not exists create folder and then return its path
+      final Directory _appDocDirNewFolder =
+          await _appDocDirFolder.create(recursive: true);
+      return _appDocDirNewFolder.path;
     }
-    setState(() {});
   }
 
   @override
@@ -166,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _randomizarNomeArquivo();
-          downloadFile();
+                        _salvarImagem();  
         },
         tooltip: 'Increment',
         child: Icon(Icons.add),
